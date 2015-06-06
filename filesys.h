@@ -36,18 +36,18 @@
 #define MASK_DAY 0x001f
 
 struct BootDescriptor_t{
-	unsigned char Oem_name[9]; /*0x03-0x0a*/
-	int BytesPerSector;        /*0x0b-0x0c*/
-	int SectorsPerCluster;     /*0x0d*/
-	int ReservedSectors;       /*0x0e-0x0f*/
-	int FATs;                  /*0x10*/
-	int RootDirEntries;        /*0x11-0x12*/
-	int LogicSectors;          /*0x13-0x14*/
-	int MediaType;             /*0x15*/
-	int SectorsPerFAT;         /*0x16-0x17*/
-	int SectorsPerTrack;       /*0x18-0x19*/
-	int Heads;                 /*0x1a-0x1b*/
-	int HiddenSectors;         /*0x1c-0x1d*/
+	unsigned char Oem_name[9]; /*0x03-0x0a*/	//DOS版本信息
+	int BytesPerSector;        /*0x0b-0x0c*/	//每个扇区字节数
+	int SectorsPerCluster;     /*0x0d*/			//每簇扇区数
+	int ReservedSectors;       /*0x0e-0x0f*/	//保留扇区数
+	int FATs;                  /*0x10*/			//文件分配表数目
+	int RootDirEntries;        /*0x11-0x12*/	//根目录个数
+	int LogicSectors;          /*0x13-0x14*/	//逻辑扇区总数
+	int MediaType;             /*0x15*/			//介质描述符
+	int SectorsPerFAT;         /*0x16-0x17*/	//每个文件分配表所占扇区数
+	int SectorsPerTrack;       /*0x18-0x19*/	//每柱面扇区数
+	int Heads;                 /*0x1a-0x1b*/	//磁盘每个盘面的磁头数
+	int HiddenSectors;         /*0x1c-0x1d*/	//隐藏扇区数目
 };
 
 /*目录项,一共32字节*/
@@ -56,7 +56,7 @@ struct Entry{
 	unsigned char long_name[27];    /*未使用，26字节的长文件名*/
 	unsigned short year,month,day;  /*22-23字节*/
 	unsigned short hour,min,sec;    /*24-25字节*/
-	unsigned short FirstCluster;    /*26-27字节*/
+	unsigned short FirstCluster;    /*26-27字节,文件的起始簇号*/
 	unsigned int size;              /*28-31字节*/
 	/*属性值                        11字节
 	*7  6  5  4  3  2  1  0
