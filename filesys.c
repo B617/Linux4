@@ -702,7 +702,6 @@ int fd_cf(char *filename,int size)
 		return -1;
 	}
 	return 1;
-
 }
 
 void do_usage()
