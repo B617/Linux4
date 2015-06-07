@@ -61,7 +61,7 @@ void ScanBootSector()
 	bdptor.Heads = RevByte(buf[0x1a],buf[0x1b]);
 	bdptor.HiddenSectors = RevByte(buf[0x1c],buf[0x1d]);
 
-	
+	ROOTDIR_OFFSET=bdptor.BtyesPerSector*bdptor.ReservedSectors+bdptor.FATs*bdptor.Sect
 	printf("Oem_name \t\t%s\n"
 		"BytesPerSector \t\t%d\n"
 		"SectorsPerCluster \t%d\n"
