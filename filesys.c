@@ -73,7 +73,8 @@ void ScanBootSector()
 		"SectorPerFAT \t\t%d\n"
 		"SectorPerTrack \t\t%d\n"
 		"Heads \t\t\t%d\n"
-		"HiddenSectors \t\t%d\n",
+		"HiddenSectors \t\t%d\n"
+                "ROOTDIR_OFFSET \t\t%d\n",
 		bdptor.Oem_name,
 		bdptor.BytesPerSector,
 		bdptor.SectorsPerCluster,
@@ -85,7 +86,8 @@ void ScanBootSector()
 		bdptor.SectorsPerFAT,
 		bdptor.SectorsPerTrack,
 		bdptor.Heads,
-		bdptor.HiddenSectors);
+		bdptor.HiddenSectors,
+                ROOTDIR_OFFSET);
 }
 
 /*日期*/
