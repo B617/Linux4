@@ -61,8 +61,14 @@ void ScanBootSector()
 	bdptor.Heads = RevByte(buf[0x1a],buf[0x1b]);
 	bdptor.HiddenSectors = RevByte(buf[0x1c],buf[0x1d]);
 
-	ROOTDIR_OFFSET=bdptor.BtyesPerSector*bdptor.ReservedSectors+bdptor.FATs*bdptor.Sect
-	printf("Oem_name \t\t%s\n"
+	for(i = 0; i < bdptor.FATs; i++)
+		FAT_OFFSET[i] = (i == 0 ? bdptor.BytesPerSector * bdptor.ReservedSectors : FAT_OFFSET[i-1] + bdptor.SectorsPerFAT * bdptor.BytesPerSector);
+
+	ROOTDIR_OFFSET = bdptor.BytesPerSector * bdptor.ReservedSectors+ bdptor.FATs * bdptor.SectorsPerFAT * bdptor.BytesPerSector;
+	
+	DATA_OFFSET = ROOTDIR_OFFSET + bdptor.RootDirEntries * DIR_ENTRY_SIZE;
+	
+        printf("Oem_name \t\t%s\n"
 		"BytesPerSector \t\t%d\n"
 		"SectorsPerCluster \t%d\n"
 		"ReservedSector \t\t%d\n"
@@ -74,7 +80,8 @@ void ScanBootSector()
 		"SectorPerTrack \t\t%d\n"
 		"Heads \t\t\t%d\n"
 		"HiddenSectors \t\t%d\n"
-                "ROOTDIR_OFFSET \t\t%d\n",
+                "ROOTDIR_OFFSET \t\t%d\n"
+                "DATA_OFFSET \t\t%d\n",
 		bdptor.Oem_name,
 		bdptor.BytesPerSector,
 		bdptor.SectorsPerCluster,
@@ -87,7 +94,8 @@ void ScanBootSector()
 		bdptor.SectorsPerTrack,
 		bdptor.Heads,
 		bdptor.HiddenSectors,
-                ROOTDIR_OFFSET);
+                ROOTDIR_OFFSET,
+                DATA_OFFSET);
 }
 
 /*日期*/
@@ -409,25 +417,19 @@ void ClearFatCluster(unsigned short cluster)
 */
 int WriteFat()
 {
-	if(lseek(fd,FAT_ONE_OFFSET,SEEK_SET)<0)
+	int j;
+	for (j = 0; j < bdptor.FATs; j++)
 	{
-		perror("lseek failed");
-		return -1;
-	}
-	if(write(fd,fatbuf,512*250)<0)
-	{
-		perror("read failed");
-		return -1;
-	}
-	if(lseek(fd,FAT_TWO_OFFSET,SEEK_SET)<0)
-	{
-		perror("lseek failed");
-		return -1;
-	}
-	if((write(fd,fatbuf,512*250))<0)
-	{
-		perror("read failed");
-		return -1;
+		if(lseek(fd,FAT_OFFSET[j],SEEK_SET)<0)
+		{
+			perror("lseek failed");
+			return -1;
+		}
+		if(write(fd,fatbuf,512*64)<0)
+		{
+			perror("read failed");
+			return -1;
+		}
 	}
 	return 1;
 }
@@ -442,7 +444,7 @@ int ReadFat()
 		perror("lseek failed");
 		return -1;
 	}
-	if(read(fd,fatbuf,512*250)<0)
+	if(read(fd,fatbuf,512*64)<0)
 	{
 		perror("read failed");
 		return -1;
