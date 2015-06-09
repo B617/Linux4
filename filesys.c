@@ -609,6 +609,11 @@ int fd_cf(char *filename,int size)
 
 					c[11] = 0x01;
 
+                                        c[22] = (clock & 0x00ff);
+					c[23] = ((clock & 0xff00)>>8);
+					c[24] = (date & 0x00ff);
+					c[25] = ((date & 0xff00)>>8);
+
 					/*写第一簇的值*/
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
@@ -672,6 +677,11 @@ int fd_cf(char *filename,int size)
 						c[i]=' ';
 
 					c[11] = 0x01;
+
+                                        c[22] = (clock & 0x00ff);
+					c[23] = ((clock & 0xff00)>>8);
+					c[24] = (date & 0x00ff);
+					c[25] = ((date & 0xff00)>>8);
 
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
