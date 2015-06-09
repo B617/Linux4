@@ -15,7 +15,7 @@
                       
 //#define DATA_OFFSET 512+250*512+250*512+512*32        
 int ROOTDIR_OFFSET=-1;
-int FAT_OFFSET[3] = {-1,-1,-1};
+int FAT_OFFSET[] = {-1,-1,-1};
 int DATA_OFFSET=-1;           
 
 /*属性位掩码*/

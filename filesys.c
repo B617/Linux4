@@ -6,6 +6,7 @@
 #include<fcntl.h>
 #include<string.h>
 #include<ctype.h>
+#include<time.h>
 #include "filesys.h"
 
 /*
@@ -439,7 +440,7 @@ int WriteFat()
 */
 int ReadFat()
 {
-	if(lseek(fd,FAT_ONE_OFFSET,SEEK_SET)<0)
+	if(lseek(fd,FAT_OFFSET[0],SEEK_SET)<0)
 	{
 		perror("lseek failed");
 		return -1;
@@ -523,15 +524,22 @@ int fd_cf(char *filename,int size)
 
 	struct Entry *pentry;
 	int ret,i=0,cluster_addr,offset;
-	unsigned short cluster,clusterno[100];
+	unsigned short cluster,clusterno[100],date=0,clock=0;
 	unsigned char c[DIR_ENTRY_SIZE];
 	int index,clustersize;
 	unsigned char buf[DIR_ENTRY_SIZE];
+	
+	time_t t;
+	struct tm *ct;
+
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
-
-
+	t=time(NULL);
+	ct = localtime(&t);
 	clustersize = (size / (CLUSTER_SIZE));
 
+	date = ((ct->tm_year - 80) << 9) + ((ct->tm_mon + 1) << 5) + ct->tm_mday;
+	clock = (ct->tm_hour << 11) + (ct->tm_min << 5) + (ct->tm_sec >> 1);
+	
 	if(size % (CLUSTER_SIZE) != 0)
 		clustersize ++;
 
@@ -608,11 +616,13 @@ int fd_cf(char *filename,int size)
 						c[i]=' ';
 
 					c[11] = 0x01;
-
-                                        c[22] = (clock & 0x00ff);
+					//time
+					
+					c[22] = (clock & 0x00ff);
 					c[23] = ((clock & 0xff00)>>8);
 					c[24] = (date & 0x00ff);
 					c[25] = ((date & 0xff00)>>8);
+
 
 					/*写第一簇的值*/
 					c[26] = (clusterno[0] &  0x00ff);
@@ -678,10 +688,13 @@ int fd_cf(char *filename,int size)
 
 					c[11] = 0x01;
 
-                                        c[22] = (clock & 0x00ff);
+					//time
+					
+					c[22] = (clock & 0x00ff);
 					c[23] = ((clock & 0xff00)>>8);
 					c[24] = (date & 0x00ff);
 					c[25] = ((date & 0xff00)>>8);
+
 
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
