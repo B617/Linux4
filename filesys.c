@@ -531,8 +531,7 @@ int fd_cf(char *filename,int size)
 	
 	time_t t;
 	struct tm *ct;
-
-	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+        pentry = (struct Entry*)malloc(sizeof(struct Entry));
 	t=time(NULL);
 	ct = localtime(&t);
 	clustersize = (size / (CLUSTER_SIZE));
