@@ -264,6 +264,8 @@ int fd_ls()
 		while(offset<cluster_addr +CLUSTER_SIZE)
 		{
 			ret = GetEntry(&entry);
+//			if(ret>0)
+//				printf("%d\n",offset);
 			offset += abs(ret);
 			if(ret > 0)
 			{
@@ -300,7 +302,9 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 	char uppername[80];
 	for(i=0;i< strlen(entryname);i++)
 		uppername[i]= toupper(entryname[i]);
+//		uppername[i]= entryname[i];
 	uppername[i]= '\0';
+
 	/*扫描根目录*/
 	if(curdir ==NULL)
 	{
@@ -333,7 +337,9 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 			ret= GetEntry(pentry);
 			offset += abs(ret);
 			if(pentry->subdir == mode &&!strcmp((char*)pentry->short_name,uppername))
+			{
 				return offset;
+			}
 		}
 		return -1;
 	}
@@ -545,12 +551,12 @@ int fd_ddir(char *name)
 		{
 			if(subentry->subdir)
 			{
-				curdir=subentry;
 				fd_ddir(subentry->short_name);
-				curdir=pentry;
 			}
 			else
+			{
 				fd_df(subentry->short_name);
+			}
 		}
 		
 		free(subentry);
@@ -573,6 +579,7 @@ int fd_ddir(char *name)
 	if(write(fd,&c,1)<0)
 		perror("write failed"); 
 
+	printf("%s is removed\n",pentry->short_name);
 	free(pentry);
 	if(WriteFat()<0)
 		exit(1);
