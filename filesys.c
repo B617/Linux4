@@ -263,6 +263,7 @@ int fd_ls()
 		/*只读一簇的内容*/
 		while(offset<cluster_addr +CLUSTER_SIZE)
 		{
+			//@warning:offset+ENTRY_SIZE
 			ret = GetEntry(&entry);
 			offset += abs(ret);
 			if(ret > 0)
@@ -516,7 +517,7 @@ size，    类型：int，文件的大小
 *返回值：1，成功；-1，失败
 *功能：在当前目录下创建文件
 */
-int fd_cf(char *filename,int size)
+int fd_cf(char *filename,int size,int mode)
 {
 
 	struct Entry *pentry;
@@ -525,10 +526,10 @@ int fd_cf(char *filename,int size)
 	unsigned char c[DIR_ENTRY_SIZE];
 	int index,clustersize;
 	unsigned char buf[DIR_ENTRY_SIZE];
-	
+
 	time_t t;
 	struct tm *ct;
-    pentry = (struct Entry*)malloc(sizeof(struct Entry));
+	pentry = (struct Entry*)malloc(sizeof(struct Entry));
 	t=time(NULL);
 	ct = localtime(&t);
 	clustersize = (size / (CLUSTER_SIZE));
@@ -539,12 +540,14 @@ int fd_cf(char *filename,int size)
 	if(size % (CLUSTER_SIZE) != 0)
 		clustersize ++;
 
+	if(mode)
+		clustersize++;
 	//扫描根目录，是否已存在该文件名
 	ret = ScanEntry(filename,pentry,0);
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
-		for(cluster=2;cluster<(FAT_BUF_SIZE-1)/2;cluster++)//FAT的最前面两项是保留的,第一个簇中存放了介质描述符,对U盘来说是0x0f0.@warning:1000?
+		for(cluster=2;cluster<(FAT_BUF_SIZE-1)/2;cluster++)//FAT的最前面两项是保留的,第一个簇中存放了介质描述符,对U盘来说是0x0f0
 		{
 			index = cluster * 2;//FAT16表中每个表项占2个字节
 			if(fatbuf[index]==0x00&&fatbuf[index+1]==0x00)
@@ -576,7 +579,7 @@ int fd_cf(char *filename,int size)
 			offset = ROOTDIR_OFFSET;
 			while(offset < DATA_OFFSET)
 			{
-			  //读取一个条目
+				//读取一个条目
 				if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 					perror("read entry failed");
 
@@ -591,7 +594,6 @@ int fd_cf(char *filename,int size)
 							perror("read root dir failed");
 						offset +=abs(ret);
 					}
-					//@warning:nothing to do?
 				}
 
 				/*找出空目录项或已删除的目录项*/ 
@@ -606,7 +608,7 @@ int fd_cf(char *filename,int size)
 					{
 						c[i]=' ';
 					}
-					c[11] = 0x01;//只读
+					c[11] = mode==0?0x01:0x10;//只读:文件夹
 					//time
 					c[22] = (clock & 0x00ff);
 					c[23] = ((clock & 0xff00)>>8);
@@ -639,7 +641,7 @@ int fd_cf(char *filename,int size)
 		else 
 		{
 			//子目录的情况与根目录类似
-			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;//@warning:为什么要-2啊，真是搞不懂
+			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;
 			if((ret= lseek(fd,cluster_addr,SEEK_SET))<0)
 				perror("lseek cluster_addr failed");
 			offset = cluster_addr;
@@ -658,7 +660,6 @@ int fd_cf(char *filename,int size)
 							perror("read root dir failed");
 						offset +=abs(ret);
 					}
-					//@warning:nothing to do?
 				}
 				else
 				{ 
@@ -670,7 +671,7 @@ int fd_cf(char *filename,int size)
 					for(;i<=10;i++)
 						c[i]=' ';
 
-					c[11] = 0x01;
+					c[11] = mode==0?0x01:0x10;//只读:文件夹
 
 					//time
 					c[22] = (clock & 0x00ff);
@@ -755,7 +756,16 @@ int main()
 			}
 			scanf("%s", input);
 			size = atoi(input);
-			fd_cf(name,size);
+			fd_cf(name,size,0);
+		}
+		else if(strcmp(input,"mkdir") == 0)
+		{
+			scanf("%s",name);
+			if(strlen(name)>11){
+				printf("the dir name is too long\n");
+				continue;
+			}
+			fd_cf(name,0,1);
 		}
 		else
 			do_usage();

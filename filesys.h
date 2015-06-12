@@ -81,7 +81,7 @@ struct Entry{
 int fd_ls();
 int fd_cd(char *dir);
 int fd_df(char *file_name);
-int fd_cf(char *file_name,int size);
+int fd_cf(char *file_name,int size,int mode);
 
 void findDate(unsigned short *year,
 						unsigned short *month,
@@ -108,6 +108,6 @@ struct Entry *curdir = NULL;//当前所在的目录，默认NULL表示位于根�
 int dirno = 0;/*代表目录的层数*/
 struct Entry* fatherdir[10];
 
-unsigned char fatbuf[512*64];//@warning
+unsigned char fatbuf[512*64];
 
 #endif
