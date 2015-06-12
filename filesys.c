@@ -65,11 +65,12 @@ void ScanBootSector()
 	for(i = 0; i < bdptor.FATs; i++)
 		FAT_OFFSET[i] = (i == 0 ? bdptor.BytesPerSector * bdptor.ReservedSectors : FAT_OFFSET[i-1] + bdptor.SectorsPerFAT * bdptor.BytesPerSector);
 
+	SECTOR_SIZE=bdptor.BytesPerSector;
+	CLUSTER_SIZE=bdptor.BytesPerSector * bdptor.SectorsPerCluster;
 	ROOTDIR_OFFSET = bdptor.BytesPerSector * bdptor.ReservedSectors+ bdptor.FATs * bdptor.SectorsPerFAT * bdptor.BytesPerSector;
-	
 	DATA_OFFSET = ROOTDIR_OFFSET + bdptor.RootDirEntries * DIR_ENTRY_SIZE;
-	
-        printf("Oem_name \t\t%s\n"
+
+	printf("Oem_name \t\t%s\n"
 		"BytesPerSector \t\t%d\n"
 		"SectorsPerCluster \t%d\n"
 		"ReservedSector \t\t%d\n"
@@ -81,8 +82,8 @@ void ScanBootSector()
 		"SectorPerTrack \t\t%d\n"
 		"Heads \t\t\t%d\n"
 		"HiddenSectors \t\t%d\n"
-                "ROOTDIR_OFFSET \t\t%d\n"
-                "DATA_OFFSET \t\t%d\n",
+		"ROOTDIR_OFFSET \t\t%d\n"
+		"DATA_OFFSET \t\t%d\n",
 		bdptor.Oem_name,
 		bdptor.BytesPerSector,
 		bdptor.SectorsPerCluster,
@@ -95,8 +96,8 @@ void ScanBootSector()
 		bdptor.SectorsPerTrack,
 		bdptor.Heads,
 		bdptor.HiddenSectors,
-                ROOTDIR_OFFSET,
-                DATA_OFFSET);
+		ROOTDIR_OFFSET,
+		DATA_OFFSET);
 }
 
 /*日期*/
@@ -157,7 +158,7 @@ int GetEntry(struct Entry *pentry)
 		perror("read entry failed");
 	count += ret;
 
-	if(buf[0]==0xe5 || buf[0]== 0x00)
+	if(buf[0]==0xe5 || buf[0]== 0x00)//0xe5:该目录项以前使用过,但是已经释放了;0x00:该目录项以前没有使用过
 		return -1*count;
 	else
 	{
@@ -180,7 +181,7 @@ int GetEntry(struct Entry *pentry)
 		//以下两个还原文件时间的函数有问题，请参照pdf文档修正
 		info[0]=buf[22];
 		info[1]=buf[23];
-		findTime(&(pentry->hour),&(pentry->min),&(pentry->sec),info);  
+		findTime(&(pentry->hour),&(pentry->min),&(pentry->sec),info);
 
 		info[0]=buf[24];
 		info[1]=buf[25];
@@ -531,7 +532,7 @@ int fd_cf(char *filename,int size)
 	
 	time_t t;
 	struct tm *ct;
-        pentry = (struct Entry*)malloc(sizeof(struct Entry));
+    pentry = (struct Entry*)malloc(sizeof(struct Entry));
 	t=time(NULL);
 	ct = localtime(&t);
 	clustersize = (size / (CLUSTER_SIZE));
@@ -547,17 +548,15 @@ int fd_cf(char *filename,int size)
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
-		for(cluster=2;cluster<1000;cluster++)
+		for(cluster=2;cluster<1000;cluster++)//FAT的最前面两项是保留的,第一个簇中存放了介质描述符,对U盘来说是0x0f0.
 		{
-			index = cluster *2;
+			index = cluster * 2;//FAT16表中每个表项占2个字节
 			if(fatbuf[index]==0x00&&fatbuf[index+1]==0x00)
 			{
 				clusterno[i] = cluster;
-
 				i++;
-				if(i==clustersize)
+				if(i == clustersize)
 					break;
-
 			}
 
 		}
@@ -566,11 +565,8 @@ int fd_cf(char *filename,int size)
 		for(i=0;i<clustersize-1;i++)
 		{
 			index = clusterno[i]*2;
-
 			fatbuf[index] = (clusterno[i+1] &  0x00ff);
 			fatbuf[index+1] = ((clusterno[i+1] & 0xff00)>>8);
-
-
 		}
 		/*最后一簇写入0xffff*/
 		index = clusterno[i]*2;
@@ -578,8 +574,7 @@ int fd_cf(char *filename,int size)
 		fatbuf[index+1] = 0xff;
 
 		if(curdir==NULL)  /*往根目录下写文件*/
-		{ 
-
+		{
 			if((ret= lseek(fd,ROOTDIR_OFFSET,SEEK_SET))<0)
 				perror("lseek ROOTDIR_OFFSET failed");
 			offset = ROOTDIR_OFFSET;
@@ -593,8 +588,8 @@ int fd_cf(char *filename,int size)
 				//看看条目是否可用（e5）或者是不是表示后面没有更多条目（00）
 				if(buf[0]!=0xe5&&buf[0]!=0x00)
 				{
-				  //buf[11]是attribute，但是感觉下面这个while循环并没有什么卵用。。。
-				  while(buf[11] == 0x0f)
+					//buf[11]是attribute，但是感觉下面这个while循环并没有什么卵用。。。
+					while(buf[11] == 0x0f)
 					{
 						if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 							perror("read root dir failed");
@@ -602,10 +597,9 @@ int fd_cf(char *filename,int size)
 					}
 				}
 
-
 				/*找出空目录项或已删除的目录项*/ 
 				else
-				{       
+				{
 					offset = offset-abs(ret);     
 					for(i=0;i<=strlen(filename);i++)
 					{
@@ -654,7 +648,7 @@ int fd_cf(char *filename,int size)
 		}
 		else 
 		{
-		  //子目录的情况与根目录类似
+			//子目录的情况与根目录类似
 			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;
 			if((ret= lseek(fd,cluster_addr,SEEK_SET))<0)
 				perror("lseek cluster_addr failed");

@@ -8,16 +8,18 @@
  * 这些参数会在ScanBootSector()的时候保存在BootDescriptor_t中
  */
 #define DIR_ENTRY_SIZE 32
-#define SECTOR_SIZE 512
-#define CLUSTER_SIZE 512*4                         
-//#define FAT_ONE_OFFSET 512                       
-//#define FAT_TWO_OFFSET 512+250*512 
-                      
+
+//#define SECTOR_SIZE 512//@warning -> bdptor.BytesPerSector
+//#define CLUSTER_SIZE 512*4//@warning -> bdptor.BytesPerSector*SectorsPerCluster
+//#define FAT_ONE_OFFSET 512
+//#define FAT_TWO_OFFSET 512+250*512
 //#define DATA_OFFSET 512+250*512+250*512+512*32
-        
+
+int SECTOR_SIZE=512;
+int CLUSTER_SIZE=-1;
 int ROOTDIR_OFFSET=-1;
 int FAT_OFFSET[] = {-1,-1,-1};
-int DATA_OFFSET=-1;           
+int DATA_OFFSET=-1;
 
 /*属性位掩码*/
 #define ATTR_READONLY 0x01
@@ -105,7 +107,7 @@ struct Entry *curdir = NULL;//当前所在的目录，默认NULL表示位于根�
 int dirno = 0;/*代表目录的层数*/
 struct Entry* fatherdir[10];
 
-unsigned char fatbuf[512*64];  
+unsigned char fatbuf[512*64];
 
 #endif
 
