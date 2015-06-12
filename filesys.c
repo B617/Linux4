@@ -619,7 +619,7 @@ int fd_cf(char *filename,int size,int mode)
 	if(mode)
 		clustersize++;
 	//扫描根目录，是否已存在该文件名
-	ret = ScanEntry(filename,pentry,0);
+	ret = ScanEntry(filename,pentry,mode);
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
