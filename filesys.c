@@ -263,7 +263,6 @@ int fd_ls()
 		/*只读一簇的内容*/
 		while(offset<cluster_addr +CLUSTER_SIZE)
 		{
-			//@warning:offset+ENTRY_SIZE
 			ret = GetEntry(&entry);
 			offset += abs(ret);
 			if(ret > 0)
@@ -503,6 +502,76 @@ int fd_df(char *filename)
 		perror("lseek fd_df failed");
 	if(write(fd,&c,1)<0)
 	perror("write failed");*/
+
+	free(pentry);
+	if(WriteFat()<0)
+		exit(1);
+	return 1;
+}
+
+
+int fd_ddir(char *name)
+{
+	struct Entry *pentry,*subentry,*predir;
+	int ret,addr,subret,maxaddr;
+	unsigned char c;
+	unsigned short seed;
+
+	pentry = (struct Entry*)malloc(sizeof(struct Entry));
+
+	/*扫描当前目录查找文件*/
+	ret = ScanEntry(name,pentry,1);
+	if(ret<0)
+	{
+		printf("no such dir\n");
+		free(pentry);
+		return -1;
+	}
+
+	/*删除所有子目录*/
+	addr=(pentry->FirstCluster - 2 ) * CLUSTER_SIZE + DATA_OFFSET;
+	predir=curdir;
+	curdir=pentry;
+
+	maxaddr=addr+CLUSTER_SIZE;
+	while(addr<maxaddr)
+	{
+		if(lseek(fd,addr,SEEK_SET)<0)
+			perror("lseek fd_df failed");
+
+		subentry=(struct Entry*)malloc(sizeof(struct Entry));
+		subret = GetEntry(subentry);
+		if(subret>0)
+		{
+			if(subentry->subdir)
+			{
+				curdir=subentry;
+				fd_ddir(subentry->short_name);
+				curdir=pentry;
+			}
+			else
+				fd_df(subentry->short_name);
+		}
+		
+		free(subentry);
+		addr += abs(subret);
+	}
+
+	curdir=predir;
+
+	/*清除fat表项*/
+	seed = pentry->FirstCluster;
+	ClearFatCluster( seed );
+
+	/*清除目录表项*/
+	c=0xe5;//e5表示该目录项可用
+
+	//现将文件指针定位到目录处，0x20等价于32，因为每条目录表项32bytes
+	if(lseek(fd,ret-0x20,SEEK_SET)<0)
+		perror("lseek fd_df failed");
+	//标记目录表项可用
+	if(write(fd,&c,1)<0)
+		perror("write failed"); 
 
 	free(pentry);
 	if(WriteFat()<0)
@@ -766,6 +835,11 @@ int main()
 				continue;
 			}
 			fd_cf(name,0,1);
+		}
+		else if(strcmp(input,"rmdir") == 0)
+		{
+			scanf("%s",name);
+			fd_ddir(name);
 		}
 		else
 			do_usage();
