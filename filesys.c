@@ -56,6 +56,8 @@ void ScanBootSector()
 	bdptor.FATs = buf[0x10];
 	bdptor.RootDirEntries = RevByte(buf[0x11],buf[0x12]);    
 	bdptor.LogicSectors = RevByte(buf[0x13],buf[0x14]);
+	if (bdptor.LogicSectors == 0)
+		bdptor.LogicSectors =RevWord(buf[0x20],buf[0x21],buf[0x22],buf[0x23]);
 	bdptor.MediaType = buf[0x15];
 	bdptor.SectorsPerFAT = RevByte( buf[0x16],buf[0x17] );
 	bdptor.SectorsPerTrack = RevByte(buf[0x18],buf[0x19]);
@@ -69,6 +71,7 @@ void ScanBootSector()
 	CLUSTER_SIZE=bdptor.BytesPerSector * bdptor.SectorsPerCluster;
 	ROOTDIR_OFFSET = bdptor.BytesPerSector * bdptor.ReservedSectors+ bdptor.FATs * bdptor.SectorsPerFAT * bdptor.BytesPerSector;
 	DATA_OFFSET = ROOTDIR_OFFSET + bdptor.RootDirEntries * DIR_ENTRY_SIZE;
+	FAT_BUF_SIZE=bdptor.SectorsPerFAT * bdptor.BytesPerSector;
 
 	printf("Oem_name \t\t%s\n"
 		"BytesPerSector \t\t%d\n"
@@ -144,7 +147,7 @@ void FileNameFormat(unsigned char *name)
 }
 
 /*参数：entry，类型：struct Entry*
-*返回值：成功，则返回偏移值；失败：返回负值
+*返回值：成功，则返回相对偏移值；失败：返回负值
 *功能：从根目录或文件簇中得到文件表项
 */
 int GetEntry(struct Entry *pentry)
@@ -176,7 +179,6 @@ int GetEntry(struct Entry *pentry)
 		pentry->short_name[i] = '\0';
 		//去掉文件名结尾的空格
 		FileNameFormat(pentry->short_name); 
-
 
 		//以下两个还原文件时间的函数有问题，请参照pdf文档修正
 		info[0]=buf[22];
@@ -300,12 +302,11 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 		uppername[i]= toupper(entryname[i]);
 	uppername[i]= '\0';
 	/*扫描根目录*/
-	if(curdir ==NULL)  
+	if(curdir ==NULL)
 	{
 		if((ret = lseek(fd,ROOTDIR_OFFSET,SEEK_SET))<0)
 			perror ("lseek ROOTDIR_OFFSET failed");
 		offset = ROOTDIR_OFFSET;
-
 
 		while(offset<DATA_OFFSET)
 		{
@@ -313,7 +314,6 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 			offset +=abs(ret);
 
 			if(pentry->subdir == mode &&!strcmp((char*)pentry->short_name,uppername))
-
 				return offset;
 
 		}
@@ -340,7 +340,6 @@ int ScanEntry (char *entryname,struct Entry *pentry,int mode)
 }
 
 
-
 /*
 *参数：dir，类型：char
 *返回值：1，成功；-1，失败
@@ -351,23 +350,24 @@ int fd_cd(char *dir)
 	struct Entry *pentry;
 	int ret;
 
+	/*返回当前目录*/
 	if(!strcmp(dir,"."))
 	{
 		return 1;
 	}
+	/*当前目录是根目录时，返回上一级目录等价于返回当前目录*/
 	if(!strcmp(dir,"..") && curdir==NULL)
 		return 1;
 	/*返回上一级目录*/
 	if(!strcmp(dir,"..") && curdir!=NULL)
 	{
-	  //fatherdir 用于保存父目录信息。
-		curdir = fatherdir[dirno];
-		dirno--; 
+		//fatherdir 用于保存父目录信息。
+		free(curdir);
+		curdir = fatherdir[--dirno];
 		return 1;
 	}
-	//注意此处有内存泄露
+	/*打开新目录*/
 	pentry = (struct Entry*)malloc(sizeof(struct Entry));
-	
 	ret = ScanEntry(dir,pentry,1);
 	if(ret < 0)
 	{
@@ -375,8 +375,7 @@ int fd_cd(char *dir)
 		free(pentry);
 		return -1;
 	}
-	dirno ++;
-	fatherdir[dirno] = curdir;
+	fatherdir[dirno++] = curdir;
 	curdir = pentry;
 	return 1;
 }
@@ -410,7 +409,6 @@ void ClearFatCluster(unsigned short cluster)
 	//所以每次更新要将连着的两个清0
 	fatbuf[index]=0x00;
 	fatbuf[index+1]=0x00;
-
 }
 
 
@@ -427,7 +425,7 @@ int WriteFat()
 			perror("lseek failed");
 			return -1;
 		}
-		if(write(fd,fatbuf,512*64)<0)
+		if(write(fd,fatbuf,FAT_BUF_SIZE)<0)
 		{
 			perror("read failed");
 			return -1;
@@ -446,7 +444,7 @@ int ReadFat()
 		perror("lseek failed");
 		return -1;
 	}
-	if(read(fd,fatbuf,512*64)<0)
+	if(read(fd,fatbuf,FAT_BUF_SIZE)<0)
 	{
 		perror("read failed");
 		return -1;
@@ -484,16 +482,14 @@ int fd_df(char *filename)
 	{
 		ClearFatCluster(seed);
 		seed = next;
-
 	}
-
 	ClearFatCluster( seed );
 
 	/*清除目录表项*/
 	c=0xe5;//e5表示该目录项可用
 
 	//现将文件指针定位到目录处，0x20等价于32，因为每条目录表项32bytes
-	if(lseek(fd,ret-0x20,SEEK_SET)<0)
+	if(lseek(fd,ret-0x20,SEEK_SET)<0)//@warning:为什么要减32啊
 		perror("lseek fd_df failed");
 	//标记目录表项可用
 	if(write(fd,&c,1)<0)
@@ -539,7 +535,7 @@ int fd_cf(char *filename,int size)
 
 	date = ((ct->tm_year - 80) << 9) + ((ct->tm_mon + 1) << 5) + ct->tm_mday;
 	clock = (ct->tm_hour << 11) + (ct->tm_min << 5) + (ct->tm_sec >> 1);
-	
+
 	if(size % (CLUSTER_SIZE) != 0)
 		clustersize ++;
 
@@ -548,7 +544,7 @@ int fd_cf(char *filename,int size)
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
-		for(cluster=2;cluster<1000;cluster++)//FAT的最前面两项是保留的,第一个簇中存放了介质描述符,对U盘来说是0x0f0.
+		for(cluster=2;cluster<(FAT_BUF_SIZE-1)/2;cluster++)//FAT的最前面两项是保留的,第一个簇中存放了介质描述符,对U盘来说是0x0f0.@warning:1000?
 		{
 			index = cluster * 2;//FAT16表中每个表项占2个字节
 			if(fatbuf[index]==0x00&&fatbuf[index+1]==0x00)
@@ -595,47 +591,41 @@ int fd_cf(char *filename,int size)
 							perror("read root dir failed");
 						offset +=abs(ret);
 					}
+					//@warning:nothing to do?
 				}
 
 				/*找出空目录项或已删除的目录项*/ 
 				else
 				{
 					offset = offset-abs(ret);     
-					for(i=0;i<=strlen(filename);i++)
+					for(i=0;i<=strlen(filename);i++)//@warning:就不怕文件名长度长于11？
 					{
 						c[i]=toupper(filename[i]);
-					}			
+					}
 					for(;i<=10;i++)
+					{
 						c[i]=' ';
-
-					c[11] = 0x01;
+					}
+					c[11] = 0x01;//只读
 					//time
-					
 					c[22] = (clock & 0x00ff);
 					c[23] = ((clock & 0xff00)>>8);
 					c[24] = (date & 0x00ff);
 					c[25] = ((date & 0xff00)>>8);
-
-
 					/*写第一簇的值*/
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
-
 					/*写文件的大小*/
 					c[28] = (size &  0x000000ff);
 					c[29] = ((size & 0x0000ff00)>>8);
 					c[30] = ((size& 0x00ff0000)>>16);
 					c[31] = ((size& 0xff000000)>>24);
-
-					/*还有很多内容并没有写入，大家请自己补充*/
+					/*还有很多内容并没有写入，大家请自己补充*///@warning:what?
 					/*而且这里还有个问题，就是对于目录表项的值为00的情况处理的不好*/
 					if(lseek(fd,offset,SEEK_SET)<0)
 						perror("lseek fd_cf failed");
 					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
 						perror("write failed");
-
-
-
 
 					free(pentry);
 					if(WriteFat()<0)
@@ -649,11 +639,11 @@ int fd_cf(char *filename,int size)
 		else 
 		{
 			//子目录的情况与根目录类似
-			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;
+			cluster_addr = (curdir->FirstCluster -2 )*CLUSTER_SIZE + DATA_OFFSET;//@warning:为什么要-2啊，真是搞不懂
 			if((ret= lseek(fd,cluster_addr,SEEK_SET))<0)
 				perror("lseek cluster_addr failed");
 			offset = cluster_addr;
-			while(offset < cluster_addr + CLUSTER_SIZE)
+			while(offset < cluster_addr + CLUSTER_SIZE)//一个簇只能被一个文件占用
 			{
 				if((ret = read(fd,buf,DIR_ENTRY_SIZE))<0)
 					perror("read entry failed");
@@ -668,6 +658,7 @@ int fd_cf(char *filename,int size)
 							perror("read root dir failed");
 						offset +=abs(ret);
 					}
+					//@warning:nothing to do?
 				}
 				else
 				{ 
@@ -682,12 +673,10 @@ int fd_cf(char *filename,int size)
 					c[11] = 0x01;
 
 					//time
-					
 					c[22] = (clock & 0x00ff);
 					c[23] = ((clock & 0xff00)>>8);
 					c[24] = (date & 0x00ff);
 					c[25] = ((date & 0xff00)>>8);
-
 
 					c[26] = (clusterno[0] &  0x00ff);
 					c[27] = ((clusterno[0] & 0xff00)>>8);
@@ -701,9 +690,6 @@ int fd_cf(char *filename,int size)
 						perror("lseek fd_cf failed");
 					if(write(fd,&c,DIR_ENTRY_SIZE)<0)
 						perror("write failed");
-
-
-
 
 					free(pentry);
 					if(WriteFat()<0)
@@ -763,6 +749,10 @@ int main()
 		else if(strcmp(input, "cf") == 0)
 		{
 			scanf("%s", name);
+			if(strlen(name)>11){
+				printf("the file name is too long\n");
+				continue;
+			}
 			scanf("%s", input);
 			size = atoi(input);
 			fd_cf(name,size);
@@ -773,6 +763,3 @@ int main()
 
 	return 0;
 }
-
-
-
