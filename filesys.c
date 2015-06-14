@@ -391,19 +391,18 @@ int fd_abcd(char *dir)
 	char c[100];
 	int i=0;
 	
-	if(*dir!='/')
+	if(*dir=='/')
 	{
-		return fd_cd(dir);
-	}
-
-	/*返回根目录*/
-	while(curdir!=NULL)
-	{
-		fd_cd("..");
+		/*返回根目录*/
+		while(curdir!=NULL)
+		{
+			fd_cd("..");
+		}
+		dir++;
 	}
 
 	/*逐级进入*/
-	while(*++dir!='\0')
+	while(*dir!='\0')
 	{
 		if(*dir=='/')
 		{
@@ -415,6 +414,7 @@ int fd_abcd(char *dir)
 		{
 			c[i++]=*dir;
 		}
+		dir++;
 	}
 	if(i!=0)
 	{
