@@ -386,6 +386,44 @@ int fd_cd(char *dir)
 	return 1;
 }
 
+int fd_abcd(char *dir)
+{
+	char c[100];
+	int i=0;
+	
+	if(*dir!='/')
+	{
+		return fd_cd(dir);
+	}
+
+	/*返回根目录*/
+	while(curdir!=NULL)
+	{
+		fd_cd("..");
+	}
+
+	/*逐级进入*/
+	while(*++dir!='\0')
+	{
+		if(*dir=='/')
+		{
+			c[i]='\0';
+			fd_cd(c);
+			i=0;
+		}
+		else
+		{
+			c[i++]=*dir;
+		}
+	}
+	if(i!=0)
+	{
+		c[i++]=0;
+		fd_cd(c);
+	}
+	return 1;
+}
+
 /*
 *参数：prev，类型：unsigned char
 *返回值：下一簇
@@ -816,7 +854,7 @@ int main()
 		else if(strcmp(input, "cd") == 0)
 		{
 			scanf("%s", name);
-			fd_cd(name);
+			fd_abcd(name);
 		}
 		else if(strcmp(input, "df") == 0)
 		{
