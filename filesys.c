@@ -830,6 +830,22 @@ void do_usage()
 	printf("please input a command, including followings:\n\tls\t\t\tlist all files\n\tcd <dir>\t\tchange direcotry\n\tcf <filename> <size>\tcreate a file\n\tdf <file>\t\tdelete a file\n\texit\t\t\texit this system\n");
 }
 
+void showpath()
+{
+	int i=0;
+	if(dirno==0)
+	{
+		printf("/>");
+	}
+	else
+	{
+		for(i=1;i<dirno;i++)
+		{
+			printf("/%s",fatherdir[i]->short_name);
+		}
+		printf("/%s>",curdir->short_name);
+	}
+}
 
 int main()
 {
@@ -844,7 +860,7 @@ int main()
 	do_usage();
 	while (1)
 	{
-		printf(">");
+		showpath();
 		scanf("%s",input);
 
 		if (strcmp(input, "exit") == 0)
@@ -856,7 +872,7 @@ int main()
 			scanf("%s", name);
 			fd_abcd(name);
 		}
-		else if(strcmp(input, "df") == 0)
+		else if(strcmp(input, "df") == 0||strcmp(input, "rm") == 0)
 		{
 			scanf("%s", name);
 			fd_df(name);
@@ -888,7 +904,7 @@ int main()
 		}
 		else
 			do_usage();
-	}	
+	}
 
 	return 0;
 }

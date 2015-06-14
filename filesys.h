@@ -102,6 +102,7 @@ int GetEntry(struct Entry *entry);
 void FileNameFormat(unsigned char *name);
 unsigned short GetFatCluster(unsigned short prev);
 void ClearFatCluster(unsigned short cluster);
+void showpath();
 
 int fd;
 struct BootDescriptor_t bdptor;
