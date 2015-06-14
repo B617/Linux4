@@ -407,7 +407,8 @@ int fd_abcd(char *dir)
 		if(*dir=='/')
 		{
 			c[i]='\0';
-			fd_cd(c);
+			if(fd_cd(c)<0)
+				return -1;
 			i=0;
 		}
 		else
@@ -419,7 +420,8 @@ int fd_abcd(char *dir)
 	if(i!=0)
 	{
 		c[i++]=0;
-		fd_cd(c);
+		if(fd_cd(c)<0)
+			return -1;
 	}
 	return 1;
 }
@@ -617,7 +619,7 @@ int fd_ddir(char *name)
 	if(write(fd,&c,1)<0)
 		perror("write failed"); 
 
-	printf("%s is removed\n",pentry->short_name);
+//	printf("%s is removed\n",pentry->short_name);
 	free(pentry);
 	if(WriteFat()<0)
 		exit(1);
@@ -656,8 +658,15 @@ int fd_cf(char *filename,int size,int mode)
 
 	if(mode)
 		clustersize++;
+
+	if(strcmp(filename,".")==0||strcmp(filename,"..")==0)
+	{
+		printf("name error\n");
+		return -1;
+	}
 	//扫描根目录，是否已存在该文件名
-	ret = ScanEntry(filename,pentry,mode);
+	ret = ScanEntry(filename,pentry,0);
+	ret = ScanEntry(filename,pentry,1);
 	if (ret<0)
 	{
 		/*查询fat表，找到空白簇，保存在clusterno[]中*/
